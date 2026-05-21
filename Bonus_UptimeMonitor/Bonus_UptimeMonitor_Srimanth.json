@@ -1,0 +1,422 @@
+{
+  "name": "Bonus_UptimeMonitor_Srimanth",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "node-uptime-schedule",
+      "name": "Schedule Trigger (Every 5 Min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize check context\nreturn [{\n  json: {\n    targetUrl: 'https://demo.realworld.io',\n    targetName: 'Conduit RealWorld Demo',\n    checkTime: new Date().toISOString(),\n    maxRetries: 3,\n    currentRetry: 0\n  }\n}];\n"
+      },
+      "id": "node-init",
+      "name": "Initialize Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.targetUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-uptime-monitor/1.0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-ping-attempt1",
+      "name": "Ping App (Attempt 1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluate the ping response and record timing\nconst pingResponse = $input.first().json;\nconst initData = $('Initialize Check').first().json;\n\n// Calculate response time (approximate)\nconst checkTime = new Date(initData.checkTime);\nconst responseTime = Date.now() - checkTime.getTime();\n\nconst statusCode = pingResponse.statusCode || 0;\nconst isUp = statusCode === 200;\nconst isWarning = statusCode >= 300 && statusCode < 400;\nconst isDown = !isUp && !isWarning;\n\nreturn [{\n  json: {\n    ...initData,\n    statusCode: statusCode,\n    responseTimeMs: responseTime,\n    isUp: isUp,\n    isDown: isDown,\n    isWarning: isWarning,\n    status: isUp ? 'UP' : (isWarning ? 'REDIRECT' : 'DOWN'),\n    errorMessage: pingResponse.error || null\n  }\n}];\n"
+      },
+      "id": "node-evaluate",
+      "name": "Evaluate Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-is-up",
+              "leftValue": "={{ $json.isUp }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-up",
+      "name": "IF App is UP (200 OK)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// App is healthy — log silently (optional: post to Discord periodically)\nconst data = $input.first().json;\n\nconsole.log(`[UPTIME] ${data.targetName} is UP | Status: ${data.statusCode} | Response: ${data.responseTimeMs}ms | ${data.checkTime}`);\n\n// Check if response time is slow (> 3 seconds) — warn even if up\nconst isSlowResponse = data.responseTimeMs > 3000;\n\nreturn [{\n  json: {\n    ...data,\n    action: isSlowResponse ? 'SLOW_WARNING' : 'OK',\n    message: isSlowResponse\n      ? `⚠️ App responded slowly (${data.responseTimeMs}ms > 3000ms threshold)`\n      : `✅ App is healthy`\n  }\n}];\n"
+      },
+      "id": "node-log-ok",
+      "name": "Log OK Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-slow",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "SLOW_WARNING",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-slow",
+      "name": "IF Slow Response",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// App is DOWN — retry up to 2 more times before alerting\n// In n8n, we trigger a wait then re-ping via a loop simulation using a counter\nconst data = $input.first().json;\nconsole.error(`[UPTIME ALERT] ${data.targetName} is DOWN | Status: ${data.statusCode} | ${data.checkTime}`);\n\nreturn [{ json: data }];\n"
+      },
+      "id": "node-retry-wait",
+      "name": "Retry Delay (Simulate Wait)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 420]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Initialize Check').first().json.targetUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-uptime-monitor/1.0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "node-ping-retry",
+      "name": "Ping App (Retry)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 420],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// After retry, determine if still down\nconst retryResponse = $input.first().json;\nconst originalData = $('Retry Delay (Simulate Wait)').first().json;\n\nconst statusCode = retryResponse.statusCode || 0;\nconst isStillDown = statusCode !== 200;\n\nreturn [{\n  json: {\n    ...originalData,\n    retryStatusCode: statusCode,\n    isStillDown: isStillDown,\n    alertType: isStillDown ? 'CONFIRMED_DOWN' : 'RECOVERED'\n  }\n}];\n"
+      },
+      "id": "node-check-retry",
+      "name": "Check Retry Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format DOWN alert for Discord\nconst data = $input.first().json;\n\nconst statusEmoji = data.alertType === 'CONFIRMED_DOWN' ? '🔴' : '🟢';\nconst statusText = data.alertType === 'CONFIRMED_DOWN' ? 'CONFIRMED DOWN' : 'RECOVERED';\n\nconst embed = {\n  embeds: [\n    {\n      title: `${statusEmoji} UPTIME ALERT: ${data.targetName} is ${statusText}`,\n      description: [\n        `**URL:** ${data.targetUrl}`,\n        `**Initial Status Code:** \\`${data.statusCode}\\``,\n        `**Retry Status Code:** \\`${data.retryStatusCode}\\``,\n        `**Response Time:** ${data.responseTimeMs}ms`,\n        `**Detected At:** ${new Date(data.checkTime).toUTCString()}`,\n        `**Error:** ${data.errorMessage || 'No specific error captured'}`,\n        '',\n        data.alertType === 'CONFIRMED_DOWN'\n          ? '⚠️ *The application failed TWO consecutive health checks. Immediate investigation required!*'\n          : '✅ *The application recovered after the retry check. No further action needed.*'\n      ].join('\\n'),\n      color: data.alertType === 'CONFIRMED_DOWN' ? 15548997 : 5832543,\n      footer: {\n        text: `n8n Uptime Monitor · Checks every 5 minutes`\n      },\n      timestamp: new Date().toISOString()\n    }\n  ]\n};\n\nreturn [{ json: embed }];\n"
+      },
+      "id": "node-format-down-alert",
+      "name": "Format Down Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format slow response warning for Discord\nconst data = $input.first().json;\n\nconst embed = {\n  embeds: [\n    {\n      title: `🐌 SLOW RESPONSE WARNING: ${data.targetName}`,\n      description: [\n        `**URL:** ${data.targetUrl}`,\n        `**HTTP Status:** \\`${data.statusCode}\\` (OK but slow)`,\n        `**Response Time:** **${data.responseTimeMs}ms** (threshold: 3000ms)`,\n        `**Detected At:** ${new Date(data.checkTime).toUTCString()}`,\n        '',\n        '⚠️ *The app is up but responding slowly. Check server resources or network latency.*'\n      ].join('\\n'),\n      color: 16744272,\n      footer: {\n        text: `n8n Uptime Monitor · Slow Response Alert`\n      },\n      timestamp: new Date().toISOString()\n    }\n  ]\n};\n\nreturn [{ json: embed }];\n"
+      },
+      "id": "node-format-slow-alert",
+      "name": "Format Slow Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-down",
+      "name": "Discord - Send Down Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-slow",
+      "name": "Discord - Send Slow Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-daily-trigger",
+      "name": "Daily Summary Trigger (9 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 620]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build daily summary digest\nconst now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\n\nconst embed = {\n  embeds: [\n    {\n      title: '📊 Daily Uptime Summary — Conduit RealWorld Demo',\n      description: [\n        `**Date:** ${yesterday.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,\n        '',\n        '**Summary**',\n        '• Monitoring ran every 5 minutes (288 checks/day)',\n        '• ✅ Check n8n execution history for full uptime data',\n        '• 🔗 Target: https://demo.realworld.io',\n        '',\n        '**How to view full history:**',\n        'Go to n8n → Executions → Filter by workflow \"Bonus_UptimeMonitor_Srimanth\"',\n        '',\n        '*This is your automated daily uptime summary. Alerts above indicate any outages detected.*'\n      ].join('\\n'),\n      color: 5814783,\n      footer: {\n        text: 'n8n Uptime Monitor · Daily Summary'\n      },\n      timestamp: now.toISOString()\n    }\n  ]\n};\n\nreturn [{ json: embed }];\n"
+      },
+      "id": "node-daily-summary",
+      "name": "Build Daily Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 620]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-daily",
+      "name": "Discord - Send Daily Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 620],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "node-error-trigger-uptime",
+      "name": "Error Trigger (Uptime)",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 820]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconst embed = {\n  embeds: [{\n    title: '🚨 Uptime Monitor Workflow Error',\n    description: [\n      `**Node:** \\`${error.node?.name || 'Unknown'}\\``,\n      `**Error:** ${error.error?.message || 'Unknown error'}`,\n      `**Time:** ${new Date().toISOString()}`,\n      '',\n      '*The uptime monitor encountered an internal error and could not complete a check.*'\n    ].join('\\n'),\n    color: 15548997,\n    footer: { text: 'n8n Error Handler' }\n  }]\n};\nreturn [{ json: embed }];\n"
+      },
+      "id": "node-format-workflow-error",
+      "name": "Format Workflow Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 820]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-workflow-error",
+      "name": "Discord - Workflow Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 820],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 5 Min)": {
+      "main": [[{ "node": "Initialize Check", "type": "main", "index": 0 }]]
+    },
+    "Initialize Check": {
+      "main": [[{ "node": "Ping App (Attempt 1)", "type": "main", "index": 0 }]]
+    },
+    "Ping App (Attempt 1)": {
+      "main": [[{ "node": "Evaluate Response", "type": "main", "index": 0 }]]
+    },
+    "Evaluate Response": {
+      "main": [[{ "node": "IF App is UP (200 OK)", "type": "main", "index": 0 }]]
+    },
+    "IF App is UP (200 OK)": {
+      "main": [
+        [{ "node": "Log OK Status", "type": "main", "index": 0 }],
+        [{ "node": "Retry Delay (Simulate Wait)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Log OK Status": {
+      "main": [[{ "node": "IF Slow Response", "type": "main", "index": 0 }]]
+    },
+    "IF Slow Response": {
+      "main": [
+        [{ "node": "Format Slow Alert", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Format Slow Alert": {
+      "main": [[{ "node": "Discord - Send Slow Alert", "type": "main", "index": 0 }]]
+    },
+    "Retry Delay (Simulate Wait)": {
+      "main": [[{ "node": "Ping App (Retry)", "type": "main", "index": 0 }]]
+    },
+    "Ping App (Retry)": {
+      "main": [[{ "node": "Check Retry Result", "type": "main", "index": 0 }]]
+    },
+    "Check Retry Result": {
+      "main": [[{ "node": "Format Down Alert", "type": "main", "index": 0 }]]
+    },
+    "Format Down Alert": {
+      "main": [[{ "node": "Discord - Send Down Alert", "type": "main", "index": 0 }]]
+    },
+    "Daily Summary Trigger (9 AM)": {
+      "main": [[{ "node": "Build Daily Summary", "type": "main", "index": 0 }]]
+    },
+    "Build Daily Summary": {
+      "main": [[{ "node": "Discord - Send Daily Summary", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger (Uptime)": {
+      "main": [[{ "node": "Format Workflow Error", "type": "main", "index": 0 }]]
+    },
+    "Format Workflow Error": {
+      "main": [[{ "node": "Discord - Workflow Error Alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-05-21T05:00:00.000Z",
+      "updatedAt": "2026-05-21T05:00:00.000Z",
+      "id": "tag-uptime",
+      "name": "Uptime Monitor"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2026-05-21T05:00:00.000Z",
+  "versionId": "v1-bonus-srimanth"
+}

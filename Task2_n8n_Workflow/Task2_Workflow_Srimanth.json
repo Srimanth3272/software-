@@ -1,0 +1,393 @@
+{
+  "name": "Task2_GitHub_Daily_Digest_Srimanth",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-trigger",
+      "name": "Schedule Trigger (Every 1 Hour)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/search/repositories",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "topic:javascript stars:>100"
+            },
+            {
+              "name": "sort",
+              "value": "stars"
+            },
+            {
+              "name": "order",
+              "value": "desc"
+            },
+            {
+              "name": "per_page",
+              "value": "10"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-github-search",
+      "name": "GitHub Search - Top JS Repos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and transform the top 5 repositories from GitHub Search API\nconst data = $input.first().json;\n\nif (!data.items || data.items.length === 0) {\n  throw new Error('No repositories found in GitHub API response');\n}\n\nconst top5 = data.items.slice(0, 5).map((repo, index) => ({\n  rank: index + 1,\n  name: repo.full_name,\n  description: repo.description || 'No description provided',\n  stars: repo.stargazers_count,\n  forks: repo.forks_count,\n  language: repo.language || 'Unknown',\n  url: repo.html_url,\n  owner: repo.owner.login,\n  repoName: repo.name,\n  openIssues: repo.open_issues_count,\n  updatedAt: new Date(repo.updated_at).toLocaleDateString('en-US', {\n    year: 'numeric', month: 'short', day: 'numeric'\n  }),\n  topics: (repo.topics || []).slice(0, 3).join(', ') || 'None'\n}));\n\n// Return array of items — n8n will split them for downstream nodes\nreturn top5.map(repo => ({ json: repo }));\n"
+      },
+      "id": "node-transform",
+      "name": "Transform - Filter Top 5 Repos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repoName }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-github-enrich",
+      "name": "GitHub Enrich - Repo Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge enriched data with our transformed repo data\nconst enriched = $input.first().json;\nconst inputData = $('Transform - Filter Top 5 Repos').first().json;\n\n// Build the final enriched object\nreturn [{\n  json: {\n    rank: inputData.rank,\n    name: inputData.name,\n    description: inputData.description,\n    stars: inputData.stars,\n    forks: inputData.forks,\n    language: inputData.language,\n    url: inputData.url,\n    openIssues: inputData.openIssues,\n    updatedAt: inputData.updatedAt,\n    topics: inputData.topics,\n    // Enriched fields from second API call\n    watchersCount: enriched.subscribers_count || 0,\n    defaultBranch: enriched.default_branch || 'main',\n    license: enriched.license ? enriched.license.spdx_id : 'None',\n    isArchived: enriched.archived || false,\n    hasWiki: enriched.has_wiki || false,\n    networkCount: enriched.network_count || 0\n  }\n}];\n"
+      },
+      "id": "node-merge",
+      "name": "Merge Enriched Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-stars",
+              "leftValue": "={{ $json.stars }}",
+              "rightValue": 1000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-stars",
+      "name": "IF Stars > 1000",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate ALL items from the IF node (true branch) into a single Discord message\nconst allItems = $input.all();\n\nconst now = new Date().toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',\n  hour: '2-digit', minute: '2-digit', timeZoneName: 'short'\n});\n\nlet repoLines = allItems.map(item => {\n  const r = item.json;\n  return [\n    `**#${r.rank} — [${r.name}](${r.url})**`,\n    `> ${r.description}`,\n    `⭐ **${r.stars.toLocaleString()} stars** | 🍴 ${r.forks.toLocaleString()} forks | 🐛 ${r.openIssues} issues`,\n    `🔤 Language: \\`${r.language}\\` | 📄 License: \\`${r.license}\\` | 👀 Watchers: ${r.watchersCount}`,\n    `🏷 Topics: \\`${r.topics}\\` | 📅 Updated: ${r.updatedAt}`,\n    ''\n  ].join('\\n');\n}).join('\\n---\\n\\n');\n\nconst message = {\n  embeds: [\n    {\n      title: '🔥 GitHub JavaScript Trending — Hourly Digest',\n      description: `**${now}**\\n\\nTop repositories with **> 1,000 ⭐** sorted by stars:\\n\\n${repoLines}`,\n      color: 5814783,\n      footer: {\n        text: 'Powered by n8n · GitHub Search API · Data refreshed every hour'\n      }\n    }\n  ]\n};\n\nreturn [{ json: message }];\n"
+      },
+      "id": "node-format-high",
+      "name": "Format Discord Message (High Stars)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all items from false branch (stars <= 1000) into a Discord message\nconst allItems = $input.all();\n\nconst now = new Date().toLocaleDateString('en-US', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',\n  hour: '2-digit', minute: '2-digit', timeZoneName: 'short'\n});\n\nlet repoLines = allItems.map(item => {\n  const r = item.json;\n  return [\n    `**#${r.rank} — [${r.name}](${r.url})**`,\n    `> ${r.description}`,\n    `⭐ ${r.stars.toLocaleString()} stars | 🍴 ${r.forks.toLocaleString()} forks | 🐛 ${r.openIssues} issues`,\n    `🔤 Language: \\`${r.language}\\` | Updated: ${r.updatedAt}`,\n    ''\n  ].join('\\n');\n}).join('\\n---\\n\\n');\n\nconst message = {\n  embeds: [\n    {\n      title: '📊 GitHub JS Repos — Low Stars Digest',\n      description: `**${now}**\\n\\nRepositories with **≤ 1,000 ⭐** (emerging or niche):\\n\\n${repoLines}\\n\\n💡 *These repos have fewer stars but may be worth watching!*`,\n      color: 16744272,\n      footer: {\n        text: 'Powered by n8n · GitHub Search API'\n      }\n    }\n  ]\n};\n\nreturn [{ json: message }];\n"
+      },
+      "id": "node-format-low",
+      "name": "Format Discord Message (Low Stars)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-high",
+      "name": "Discord - Post High Stars Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-low",
+      "name": "Discord - Post Low Stars Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format error alert for Discord\nconst error = $input.first().json;\n\nconst message = {\n  embeds: [\n    {\n      title: '🚨 n8n Workflow Error — GitHub Digest',\n      description: [\n        `**Error in workflow:** \\`${error.workflow?.name || 'GitHub Daily Digest'}\\``,\n        `**Failed node:** \\`${error.node?.name || 'Unknown'}\\``,\n        `**Error message:** ${error.error?.message || 'Unknown error'}`,\n        `**Timestamp:** ${new Date().toISOString()}`,\n        '',\n        '*The daily digest could not be delivered. Please check n8n logs.*'\n      ].join('\\n'),\n      color: 15548997,\n      footer: { text: 'n8n Error Handler' }\n    }\n  ]\n};\n\nreturn [{ json: message }];\n"
+      },
+      "id": "node-format-error",
+      "name": "Format Error Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.discordWebhookUrl }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "node-discord-error",
+      "name": "Discord - Post Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 600],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-discord",
+          "name": "Discord Webhook Credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 1 Hour)": {
+      "main": [
+        [
+          {
+            "node": "GitHub Search - Top JS Repos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Search - Top JS Repos": {
+      "main": [
+        [
+          {
+            "node": "Transform - Filter Top 5 Repos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform - Filter Top 5 Repos": {
+      "main": [
+        [
+          {
+            "node": "GitHub Enrich - Repo Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Enrich - Repo Details": {
+      "main": [
+        [
+          {
+            "node": "Merge Enriched Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Enriched Data": {
+      "main": [
+        [
+          {
+            "node": "IF Stars > 1000",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Stars > 1000": {
+      "main": [
+        [
+          {
+            "node": "Format Discord Message (High Stars)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Discord Message (Low Stars)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Discord Message (High Stars)": {
+      "main": [
+        [
+          {
+            "node": "Discord - Post High Stars Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Discord Message (Low Stars)": {
+      "main": [
+        [
+          {
+            "node": "Discord - Post Low Stars Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Discord - Post Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-05-21T05:00:00.000Z",
+      "updatedAt": "2026-05-21T05:00:00.000Z",
+      "id": "tag-qa-assessment",
+      "name": "QA Assessment"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-05-21T05:00:00.000Z",
+  "versionId": "v1-srimanth"
+}
